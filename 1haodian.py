@@ -6,6 +6,12 @@ import re
 import time
 from sendmail import send_mail
 
+
+
+item_pattern = 'pmId=\"(\d+)\" href=\"(http://www.yihaodian.com/item/(\d+)_\d\?[^\";\'\)]*)\".*title\=\"([^\"]+)\"'
+item_re = re.compile(item_pattern)
+
+
 headers = {'User-Agent' : 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0)'}
 
 re_product_name = re.compile('<input .* id=\"productName\".*value=\"(.+)\"')
