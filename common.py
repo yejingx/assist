@@ -4,6 +4,31 @@
 
 import re
 import urllib2
+import threading
+
+#import Queue
+
+class AssistThread(threading.Thread):
+
+    def __init__(self, queue):
+        threading.Thread.__init__(self)
+        self.queue = queue
+
+    def run(self):
+        job = self.queue.get()
+        self.proceee_job(job)
+        self.queue.task_done()
+        print 'job %r is done' % job
+
+    def proceee_job(self):
+        '''
+        override this function
+        '''
+        print job
+
+def signal_generator(queue):
+    pass
+
 
 headers = {'User-Agent' : 'Mozilla/5.0 (X11; Linux i686) AppleWebKit/537.31 (KHTML, like Gecko) Chrome/26.0.1410.43 Safari/537.31'}
 #headers = {'User-Agent' : 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0)'}

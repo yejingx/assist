@@ -5,25 +5,64 @@ import urllib2
 import re
 import time
 from sendmail import send_mail
+from common import read_html, traverse_html, AssistThread
 
 
-1haodian_item_url = '^http://www.yihaodian.com/item/(\d+)_\d$'
-1haodian_items_pt = 'pmId=\"(\d+)\" href=\"(http://www.yihaodian.com/item/(\d+)_\d\?[^\";\'\)]*)\".*title\=\"([^\"]+)\"'
-1haodian_item_re = re.compile(1haodian_item_url)
-1haodian_items_re = re.compile(1haodian_items_pt)
-
-1mall_item_url = '^http://www.1mall.com/item/(\d+)_\d$'
-1mall_item_re = re.compile(1mall_item_url)
+yihaodian_url = 'http://www.yihaodian.com|http://www.1mall.com/'
+yihaodian_item_url = 'http://www.(?:yihaodian|1mall).com/item/(?:\d+)_\d'
+#1mall_item_url = '^http://www.1mall.com/item/(?:\d+)_\d'
+#1haodian_items_url = '^http://www.yihaodian.com/ctg/|^http://www.yihaodian.com/channel/(?:\d+)_\d(?:/)?$'
+yihaodian_items_pt = 'href=\"(http://www.(?:yihaodian|1mall).com/item/(\d+)_\d)[\"\?/].*title\=\"([^\"]+)\"'
+yihaodian_re = re.compile(yihaodian_url)
+yihaodian_item_re = re.compile(yihaodian_item_url)
+yihaodian_items_re = re.compile(yihaodian_items_pt)
+#1mall_item_re = re.compile(1mall_item_url)
 
 
 headers = {'User-Agent' : 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0)'}
 
-re_product_name = re.compile('<input .* id=\"productName\".*value=\"(.+)\"')
-re_pm_id        = re.compile('<input .* id=\"productMercantId\".*value=\"(.+)\"')
+product_title_re = re.compile('<input .* id=\"productName\".*value=\"(.+)\"')
+pmid_re = re.compile('^http://www.(?:yihaodian|1mall).com/item/(\d+)_\d')
 
-re_details = re.compile('\"currentPrice\":([\d\.]+).*\"marketPrice\":([\d\.]+).*\"yhdPrice\":([\d\.]+).*\"promPrice\":([\d\.]+).*\"currentStockNum\":([\d]+).*\"remainTime\":([\d]+)')
+details_re = re.compile('\"currentPrice\":([\d\.]+).*\"marketPrice\":([\d\.]+).*\"yhdPrice\":([\d\.]+).*\"promPrice\":([\d\.]+).*\"currentStockNum\":([\d]+).*\"remainTime\":([\d]+)')
 
 ajax_url = 'http://busystock.i.yihaodian.com/restful/detail?mcsite=1&provinceId=6&pmId=%s'
+
+
+class YihaodianThread(AssistThread):
+
+    def __init__(self, queue, url, price, title):
+        AssistThread.__init__(queue)
+        self.url = url
+        self.price = price
+        self.title = title
+
+    def process_job():
+        html = read_html(self.url)
+        self.title = product_title_re.search(html).group(0)
+        print self.title, self.price
+
+def YihaodianThreadFactory(threading.Thread):
+
+    def __init__(self, queue, url, price):
+        threading.Thread.__init__()
+        self.queue = queue
+        self.url = url
+        self.price = price
+
+    def run(self):
+        html = read_html(self.url)
+        item = yihaodian_item_re.search(self.url)
+        if item:
+            pmid = item.group(0)
+            title = product_title_re.search(html).group(0)
+            if self.price == 0:
+                self.price = int(details_re.search(read_html(ajax_url % pmid)).group(0))
+            YihaodianThread(self.queue, self.url, self.price, title).start()
+        else:
+            for item in traverse_html(html, yihaodian_items_pt):
+                YihaodianThread(self.queue, item[0], item[1], item[2]).start()
+
 
 def check_waiting_list(waitings):
     for url, info in waitings.iteritems():
@@ -75,24 +114,34 @@ def check_waiting_list(waitings):
             info['hit'] = 0
         time.sleep(10)
 
-def url_waiting_list():
-    lists = open('./waiting.txt', 'r')
+def url_waiting_list(file_path = './waiting.txt'):
+    lists = open(file_path, 'r')
     entry = lists.readline().strip()
     while entry:
-        if len(entry) > 2:
+        if len(entry) > 2 and entry[0] != '#':
             e = entry.split(' ')
-            p = int(e[1]) if len(e) > 1 else 0
-            yield e[0], {'price':p, 'hit':-5, 'update':time.time()}
+            yield e[0], int(e[1]) if len(e) > 1 else 0
         entry = lists.readline().strip()
     lists.close()
 
 if __name__ == '__main__':
-    waitings = dict()
-    for u, p in url_waiting_list():
-        waitings[u] = p
-    while True:
-        check_waiting_list(waitings)
-        time.sleep(200)
+    #assert(yihaodian_re.match('http://www.1mall.com/2/'))
+    #assert(yihaodian_re.match('http://www.yihaodian.com/2/?type=3'))
+    #assert(not yihaodian_item_re.match('http://www.yihaodian.com/2/?type=3'))
+    #assert(yihaodian_item_re.match('http://www.yihaodian.com/item/995742_2?ref=1_1_44_search.promotion_1'))
+    #assert(yihaodian_item_re.match('http://www.1mall.com/item/995742_2?ref=1_1_44_search.promotion_1'))
+    #assert(yihaodian_item_re.match('http://www.1mall.com/item/8880977_1'))
+    #assert(yihaodian_item_re.match('http://www.yihaodian.com/item/995742_2'))
+    #assert(yihaodian_item_re.match('http://www.yihaodian.com/item/995742_2/'))
+    #assert(yihaodian_item_re.match('http://www.yihaodian.com/item/995742_2?'))
+
+    pass
+#    waitings = dict()
+#    for u, p in url_waiting_list():
+#        waitings[u] = p
+#    while True:
+#        check_waiting_list(waitings)
+#        time.sleep(200)
 
 
 
