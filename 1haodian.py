@@ -7,9 +7,13 @@ import time
 from sendmail import send_mail
 
 
+1haodian_item_url = '^http://www.yihaodian.com/item/(\d+)_\d$'
+1haodian_items_pt = 'pmId=\"(\d+)\" href=\"(http://www.yihaodian.com/item/(\d+)_\d\?[^\";\'\)]*)\".*title\=\"([^\"]+)\"'
+1haodian_item_re = re.compile(1haodian_item_url)
+1haodian_items_re = re.compile(1haodian_items_pt)
 
-item_pattern = 'pmId=\"(\d+)\" href=\"(http://www.yihaodian.com/item/(\d+)_\d\?[^\";\'\)]*)\".*title\=\"([^\"]+)\"'
-item_re = re.compile(item_pattern)
+1mall_item_url = '^http://www.1mall.com/item/(\d+)_\d$'
+1mall_item_re = re.compile(1mall_item_url)
 
 
 headers = {'User-Agent' : 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0)'}
