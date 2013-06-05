@@ -6,8 +6,6 @@ import re
 import urllib2
 import threading
 
-#import Queue
-
 class AssistThread(threading.Thread):
 
     def __init__(self, queue):
